@@ -4,7 +4,6 @@
   become: yes
   vars_files:
     - ./vars/mssql.yml
-  # custom environments
   # https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-configure-environment-variables?view=sql-server-ver15
   environment:
     ACCEPT_EULA: Y
@@ -17,29 +16,21 @@
       apt:
         update_cache: yes
 
-    # hack to install mssql-server-2019 in ubuntu/bionic64:
-    # https://blogs.msdn.microsoft.com/sql_server_team/installing-sql-server-2017-for-linux-on-ubuntu-18-04-lts/
-    - name: uninstall libcurl4
-      apt:
-        name: libcurl4
-        state: absent
-
     - name: install essential packages
       apt:
         pkg:
           - build-essential
           - software-properties-common
-          - libcurl3
         state: present
 
-    # following steps: https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-ubuntu?view=sql-server-linux-ver15#install
+    # https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-ubuntu?view=sql-server-ver15#install
     - name: import the public repository GPG keys
       apt_key:
         url: https://packages.microsoft.com/keys/microsoft.asc
 
     - name: register the Microsoft SQL Server Ubuntu repository for SQL Server 2019
       apt_repository:
-        repo: deb https://packages.microsoft.com/ubuntu/16.04/mssql-server-2019 xenial main
+        repo: deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/18.04/mssql-server-2019 bionic main
         filename: mssql-server-2019
         update_cache: yes
 
@@ -47,11 +38,6 @@
       apt:
         name: mssql-server
         update_cache: yes
-
-    - name: stop mssql-server if is running
-      service:
-        name: mssql-server
-        state: stopped
 
     - name: run mssql-conf setup
       command: /opt/mssql/bin/mssql-conf setup
@@ -62,10 +48,10 @@
         state: started
         enabled: yes
 
-    # install the SQL Server command-line tools
+    # https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-ubuntu?view=sql-server-ver15#tools
     - name: register the Microsoft Ubuntu repository for command-line tools
       apt_repository:
-        repo: deb https://packages.microsoft.com/ubuntu/18.04/prod bionic main
+        repo: deb [arch=amd64] https://packages.microsoft.com/ubuntu/18.04/prod bionic main
         filename: mssql-command-line
         update_cache: yes
 
@@ -82,7 +68,8 @@
         regexp: "^PATH="
         firstmatch: yes
         insertafter: EOF
-
+    
+    # https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-ubuntu?view=sql-server-ver15#create-and-query-data
     - name: create a database
       become: no
       command: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "{{ mssql_sa_password }}" -Q "CREATE DATABASE {{ mssql_db_name }}"
